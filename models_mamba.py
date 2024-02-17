@@ -10,7 +10,7 @@ from timm.models.vision_transformer import VisionTransformer, _cfg
 from timm.models.registry import register_model
 from timm.models.layers import trunc_normal_
 
-from timm.models.layers import DropPath, Format, _assert, nchw_to
+from timm.models.layers import DropPath, _assert
 from timm.models.vision_transformer import _load_weights
 
 import math
@@ -219,13 +219,13 @@ class PatchEmbed(nn.Module):
             self.grid_size = None
             self.num_patches = None
 
-        if output_fmt is not None:
-            self.flatten = False
-            self.output_fmt = Format(output_fmt)
-        else:
+        # if output_fmt is not None:
+        #     self.flatten = False
+        #     self.output_fmt = Format(output_fmt)
+        # else:
             # flatten spatial dim and transpose to channels last, kept for bwd compat
-            self.flatten = flatten
-            self.output_fmt = Format.NCHW
+        self.flatten = flatten
+        # self.output_fmt = Format.NCHW
         self.strict_img_size = strict_img_size
         self.dynamic_img_pad = dynamic_img_pad
 
@@ -254,8 +254,8 @@ class PatchEmbed(nn.Module):
         x = self.proj(x)
         if self.flatten:
             x = x.flatten(2).transpose(1, 2)  # NCHW -> NLC
-        elif self.output_fmt != Format.NCHW:
-            x = nchw_to(x, self.output_fmt)
+        # elif self.output_fmt != Format.NCHW:
+        #     x = nchw_to(x, self.output_fmt)
         x = self.norm(x)
         return x
 
