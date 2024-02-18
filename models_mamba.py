@@ -192,7 +192,7 @@ def segm_init_weights(m):
 class PatchEmbed(nn.Module):
     """ 2D Image to Patch Embedding
     """
-    output_fmt: Format
+    # output_fmt: Format
     dynamic_img_pad: torch.jit.Final[bool]
 
     def __init__(
