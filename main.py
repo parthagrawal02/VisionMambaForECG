@@ -38,10 +38,12 @@ def get_args_parser():
     parser.add_argument('--data_path', default="/Users/parthagrawal02/Desktop/Carelog/ECG_CNN/physionet", type=str)
     parser.add_argument('--train_start', default=0, type=int)
     parser.add_argument('--data_split', default=0.2, type=int)
+    parser.add_argument('--nb_classes', default=10, type=int)
     parser.add_argument('--train_end', default=4, type=int)
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--bce-loss', action='store_true')
     parser.add_argument('--unscale-lr', action='store_true')
+    parser.add_argument('--batch_size', default=32, type=int)
 
     # Model parameters
     parser.add_argument('--model', default='vim_base_ecg', type=str, metavar='MODEL',
@@ -312,7 +314,6 @@ def main(args):
         drop_rate=args.drop,
         drop_path_rate=args.drop_path,
         drop_block_rate=None,
-        img_size=args.input_size
     )
                     
     if args.finetune:
