@@ -131,7 +131,7 @@ def create_block(
     if ssm_cfg is None:
         ssm_cfg = {}
     factory_kwargs = {"device": device, "dtype": dtype}
-    mixer_cls = partial(Mamba, layer_idx=layer_idx, bimamba_type=bimamba_type, **ssm_cfg, **factory_kwargs)
+    mixer_cls = partial(Mamba, layer_idx=layer_idx, **ssm_cfg, **factory_kwargs)
     norm_cls = partial(
         nn.LayerNorm if not rms_norm else RMSNorm, eps=norm_epsilon, **factory_kwargs
     )
@@ -342,7 +342,6 @@ class VisionMamba(nn.Module):
                     residual_in_fp32=residual_in_fp32,
                     fused_add_norm=fused_add_norm,
                     layer_idx=i,
-                    bimamba_type=bimamba_type,
                     drop_path=inter_dpr[i],
                     **factory_kwargs,
                 )
