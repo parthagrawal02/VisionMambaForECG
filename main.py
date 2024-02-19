@@ -35,9 +35,9 @@ import mlflow
 def get_args_parser():
     parser = argparse.ArgumentParser('DeiT training and evaluation script', add_help=False)
     parser.add_argument('--batch-size', default=64, type=int)
-    parser.add_argument('--args.data_path', default="/Users/parthagrawal02/Desktop/Carelog/ECG_CNN/physionet", type=str)
-    parser.add_argument('--args.train_start', default=0, type=int)
-    parser.add_argument('--args.train_end', default=10, type=int)
+    parser.add_argument('--data_path', default="/Users/parthagrawal02/Desktop/Carelog/ECG_CNN/physionet", type=str)
+    parser.add_argument('--train_start', default=0, type=int)
+    parser.add_argument('--train_end', default=10, type=int)
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--bce-loss', action='store_true')
     parser.add_argument('--unscale-lr', action='store_true')
