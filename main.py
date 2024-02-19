@@ -35,6 +35,9 @@ import mlflow
 def get_args_parser():
     parser = argparse.ArgumentParser('DeiT training and evaluation script', add_help=False)
     parser.add_argument('--batch-size', default=64, type=int)
+    parser.add_argument('--args.data_path', default="/Users/parthagrawal02/Desktop/Carelog/ECG_CNN/physionet", type=str)
+    parser.add_argument('--args.train_start', default=0, type=int)
+    parser.add_argument('--args.train_end', default=10, type=int)
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--bce-loss', action='store_true')
     parser.add_argument('--unscale-lr', action='store_true')
@@ -105,7 +108,7 @@ def get_args_parser():
     parser.add_argument('--train-interpolation', type=str, default='bicubic',
                         help='Training interpolation (random, bilinear, bicubic default: "bicubic")')
 
-    parser.add_argument('--repeated-aug', action='store_true')
+    parser.add_argument('--repeated-aug', action='store_false')
     parser.add_argument('--no-repeated-aug', action='store_false', dest='repeated_aug')
     parser.set_defaults(repeated_aug=True)
     
