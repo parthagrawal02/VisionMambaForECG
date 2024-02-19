@@ -241,10 +241,10 @@ def main(args):
 
     # log about
     run_name = args.output_dir.split("/")[-1]
-    if args.local_rank == 0 and args.gpu == 0:
-        mlflow.start_run(run_name=run_name)
-        for key, value in vars(args).items():
-            mlflow.log_param(key, value)
+    # if args.local_rank == 0 and args.gpu == 0:
+    #     mlflow.start_run(run_name=run_name)
+    #     for key, value in vars(args).items():
+    #         mlflow.log_param(key, value)
 
     # Training Data -
     full_dataset = CustomDataset(args.data_path, args.train_start, args.train_end)
@@ -384,9 +384,9 @@ def main(args):
             resume='')
 
     model_without_ddp = model
-    if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
-        model_without_ddp = model.module
+    # if args.distributed:
+    #     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+    #     model_without_ddp = model.module
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('number of params:', n_parameters)
 
@@ -468,8 +468,8 @@ def main(args):
         return
     
     # log about
-    if args.local_rank == 0 and args.gpu == 0:
-        mlflow.log_param("n_parameters", n_parameters)
+    # if args.local_rank == 0 and args.gpu == 0:
+    #     mlflow.log_param("n_parameters", n_parameters)
 
     print(f"Start training for {args.epochs} epochs")
     start_time = time.time()
@@ -527,9 +527,9 @@ def main(args):
                      'n_parameters': n_parameters}
         
         # log about
-        if args.local_rank == 0 and args.gpu == 0:
-            for key, value in log_stats.items():
-                mlflow.log_metric(key, value, log_stats['epoch'])
+        # if args.local_rank == 0 and args.gpu == 0:
+        #     for key, value in log_stats.items():
+        #         mlflow.log_metric(key, value, log_stats['epoch'])
         
         if args.output_dir and utils.is_main_process():
             with (output_dir / "log.txt").open("a") as f:
