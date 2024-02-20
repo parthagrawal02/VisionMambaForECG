@@ -63,4 +63,5 @@ class CustomDataset(Dataset):
         var = img_tensor.var(dim=-1, keepdim=True)
         img_tensor = (img_tensor - mean) / (var + 1.e-6)**.5
         class_id = torch.tensor([class_id])
+        print(idx)
         return img_tensor, class_id
