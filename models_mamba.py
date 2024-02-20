@@ -449,6 +449,7 @@ class VisionMamba(nn.Module):
             raise NotImplementedError
 
     def forward(self, x, return_features=False, inference_params=None):
+        x = x[:, None, :, :]
         x = self.forward_features(x, inference_params)
         if return_features:
             return x
