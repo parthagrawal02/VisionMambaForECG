@@ -46,47 +46,43 @@ class CustomDataset(Dataset):
                     y.append(output_array)
                     self.data.append([filepath, output_array])
 
-    # def __init__(self, data_files, transform=None):
-    #     self.data_files = data_files
-    #     self.transform = transform
-
     def __len__(self):
-        return len(self.data)*10
+
+        # l3 = 0
+
+        # for file_path, _ in self.data:
+        #     ecg_signal =  wfdb.rdsamp(file_path[:-4])[0]
+        #     resampled_x, _ = wfdb.processing.resample_sig(ecg_signal[:, 0], 500, 250)
+        #     _, rpeaks = nk.ecg_peaks(resampled_x, sampling_rate=250, method="neurokit")
+        #     l3 += len(rpeaks["ECG_R_Peaks"])
+
+        return len(self.data)*8
     
     def __getitem__(self, idx):
 
-        file_idx = idx //  10
-        segment_idx = idx %  10
+        file_idx = idx //  8
+        segment_idx = idx %  8
         file_path, class_name = self.data[file_idx]
         ecg_signal =  wfdb.rdsamp(file_path[:-4])[0]
+
+        resampled_x, _ = wfdb.processing.resample_sig(ecg_signal[:, 0], 500, 250)
+        _, rpeaks = nk.ecg_peaks(resampled_x, sampling_rate=500, method="neurokit")
+
         lx = []
-        for chan in range(ecg_signal.shape[1]):
+        n = ecg_signal.shape[1]
+        for chan in range(n):
             resampled_x, _ = wfdb.processing.resample_sig(ecg_signal[:, chan], 500, 250)
-            lx.append(resampled_x)
-        ecg_tensor = torch.from_numpy(np.array(lx).astype(np.float32))
+            cleaned_ecg = nk.ecg_clean(resampled_x, sampling_rate=250)
+            epochs = nk.ecg_segment(cleaned_ecg, rpeaks["ECG_R_Peaks"], sampling_rate=250)
+            df_with_index_column = np.array(list(epochs.values())[:][segment_idx].reset_index()['index'])
+            # print(df_with_index_column.shape)
+            lx.append(df_with_index_column)
 
-        # Step  1: Clean the ECG signal
-        cleaned_ecg = nk.ecg_clean(ecg_tensor.transpose(), sampling_rate=250)
-
-        # Step  2: Detect R-peaks
-        _, rpeaks = nk.ecg_peaks(cleaned_ecg, sampling_rate=250, method="neurokit")
-
-        # Step  3: Extract cardiac cycles
-        # Assuming 'duration' is the duration of each cardiac cycle in seconds
-        duration =  1.0  # This is a placeholder, you need to determine the actual duration
-        cycle_length = duration *  250  # Calculate the number of samples in each cycle
-
-        # Split the cleaned ECG signal into cycles
-        cycles = np.array_split(cleaned_ecg, len(ecg_signal) // cycle_length)
-
-        cycle = cycles[segment_idx]
-    
+        lx = np.array(lx).astype(np.float32) 
+        padding_length = 320 - lx.shape[1]
+        lx = np.pad(lx, ((0,0), (padding_length - padding_length // 2, padding_length // 2)), 'constant', constant_values=0)
+        ecg_tensor = torch.from_numpy(lx)
+        print(ecg_tensor.shape)
         class_id = self.class_map[class_name]
-        img_tensor = cycle[None, :, :]
-        # mean = img_tensor.mean(dim=-1, keepdim=True)
-        # var = img_tensor.var(dim=-1, keepdim=True)
-        # img_tensor = (img_tensor - mean) / (var + 1.e-6)**.5
         class_id = torch.tensor([class_id])
-        return img_tensor, class_id
-
-
+        return ecg_tensor, class_id
