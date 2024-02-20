@@ -51,8 +51,8 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
             targets = targets.gt(0.0).type(targets.dtype)
          
         with amp_autocast():
-            outputs = model(samples, if_random_cls_token_position=args.if_random_cls_token_position, if_random_token_rank=args.if_random_token_rank)
-            # outputs = model(samples)
+            # outputs = model(samples, if_random_cls_token_position=args.if_random_cls_token_position, if_random_token_rank=args.if_random_token_rank)
+            outputs = model(samples)
             if not args.cosub:
                 loss = criterion(samples, outputs, targets)
             else:
