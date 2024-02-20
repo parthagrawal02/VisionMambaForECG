@@ -58,7 +58,7 @@ class CustomDataset(Dataset):
 
         class_id = self.class_map[class_name]
         ecg_tensor = torch.from_numpy(np.array(lx).astype(np.float32))
-        # img_tensor = ecg_tensor[None, :, :]
+        img_tensor = ecg_tensor
         mean = img_tensor.mean(dim=-1, keepdim=True)
         var = img_tensor.var(dim=-1, keepdim=True)
         img_tensor = (img_tensor - mean) / (var + 1.e-6)**.5
