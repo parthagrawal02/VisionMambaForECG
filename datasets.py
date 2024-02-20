@@ -7,6 +7,14 @@ import wfdb
 from wfdb import processing
 import pdb
 import neurokit2 as nk
+import pandas as pd
+
+def dropna(arr, *args, **kwarg):
+    assert isinstance(arr, np.ndarray)
+    dropped = pd.DataFrame(arr).dropna(*args, **kwarg).values
+    if arr.ndim ==  1:
+        dropped = dropped.flatten()
+    return dropped
 
 class CustomDataset(Dataset):
     def __init__(self, data_path: str = "", start: int = 0, end: int = 46, sampling_rate = 250):
@@ -68,6 +76,7 @@ class CustomDataset(Dataset):
 
             resampled_x, _ = wfdb.processing.resample_sig(ecg_signal[:, 0], 500, 250)
             _, rpeaks = nk.ecg_peaks(resampled_x, sampling_rate=500, method="neurokit")
+            rpeaks["ECG_R_Peaks"] = dropna(rpeaks["ECG_R_Peaks"])
 
             lx = []
             n = ecg_signal.shape[1]
@@ -97,6 +106,7 @@ class CustomDataset(Dataset):
 
             resampled_x, _ = wfdb.processing.resample_sig(ecg_signal[:, 0], 500, 250)
             _, rpeaks = nk.ecg_peaks(resampled_x, sampling_rate=500, method="neurokit")
+            rpeaks["ECG_R_Peaks"] = dropna(rpeaks["ECG_R_Peaks"])
 
             lx = []
             n = ecg_signal.shape[1]
