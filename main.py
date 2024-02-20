@@ -42,6 +42,7 @@ def get_args_parser():
     parser.add_argument('--nb_classes', default=10, type=int)
     parser.add_argument('--train_end', default=4, type=int)
     parser.add_argument('--epochs', default=300, type=int)
+    parser.add_argument('--length', default=1000, type=int)
     parser.add_argument('--bce-loss', action='store_true')
     parser.add_argument('--unscale-lr', action='store_true')
     parser.add_argument('--batch_size', default=32, type=int)
