@@ -37,7 +37,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
         # count += 1
         # if count > 20:
         #     break
-
+        targets = targets[:, 0]
         samples = samples.to(device, non_blocking=True)
         targets = targets.to(device, non_blocking=True)
 
@@ -112,6 +112,7 @@ def evaluate(data_loader, model, device, amp_autocast):
     model.eval()
 
     for images, target in metric_logger.log_every(data_loader, 10, header):
+        target = target[:, 0]
         images = images.to(device, non_blocking=True)
         target = target.to(device, non_blocking=True)
 
