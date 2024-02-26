@@ -26,7 +26,7 @@ from mamba_ssm.modules.mamba_simple import Mamba
 from mamba_ssm.utils.generation import GenerationMixin
 from mamba_ssm.utils.hf import load_config_hf, load_state_dict_hf
 
-from rope import *
+# from rope import *
 import random
 
 try:
@@ -299,7 +299,7 @@ class VisionMambaEncode(nn.Module):
         self.num_tokens = 1 if if_cls_token else 0
 
         # pretrain parameters
-        self.num_classes = num_classes
+        # self.num_classes = num_classes
         self.d_model = self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
 
         self.patch_embed = PatchEmbed(
@@ -482,14 +482,15 @@ class VisionMambaEncode(nn.Module):
 class MaskedAutoencoderVim(nn.Module):
     """ Masked Autoencoder with VisionTransformer backbone
     """
-    def __init__(self, img_size=(12, 1000), patch_size=(1, 50), in_chans=1,
-                 embed_dim=128, depth=6, num_heads=8,
-                 decoder_embed_dim=64, decoder_depth=3, decoder_num_heads=8,
-                 mlp_ratio=3., norm_layer=nn.LayerNorm, norm_pix_loss=False):
+    def __init__(self, img_size=(12, 2500), patch_size=(1, 125), embed_dim=192, depth=24, 
+        rms_norm=True, residual_in_fp32=True, fused_add_norm=True, 
+        final_pool_type='all', if_abs_pos_embed=True, if_rope=False, 
+        if_rope_residual=False, bimamba_type="v2",
+        decoder_embed_dim=96, decoder_depth= 8, mask_ratio = 0.75, norm_pix_loss=False):
         super().__init__()
 
         # --------------------------------------------------------------------------
-        self.encoder =  VisionMambaEncode(img_size=(12, ), patch_size=(1, 40), embed_dim=192, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='mean', if_abs_pos_embed=True, if_rope=False, if_rope_residual=False, bimamba_type="v2", **kwargs)
+        self.encoder =  VisionMambaEncode(img_size=(12, ), patch_size=(1, 40), embed_dim=192, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='mean', if_abs_pos_embed=True, if_rope=False, if_rope_residual=False, bimamba_type="v2")
 
         # self.norm = norm_layer(embed_dim)
         # --------------------------------------------------------------------------
