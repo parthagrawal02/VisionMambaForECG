@@ -33,10 +33,10 @@ import timm
 # assert timm.__version__ == "0.3.2"  # version check
 import timm.optim.optim_factory as optim_factory
 
-import utils.misc as misc
-from utils.misc import NativeScalerWithGradNormCount as NativeScaler
-from utils.ecg_dataloader import CustomDataset
-import models_mae
+import util.misc as misc
+from util.misc import NativeScalerWithGradNormCount as NativeScaler
+from util.ecg_dataloader import CustomDataset
+import models_mae_mamba
 from torchsummary import summary
 
 from engine_pretrain import train_one_epoch
@@ -51,10 +51,10 @@ def get_args_parser():
                         help='Accumulate gradient iterations (for increasing the effective batch size under memory constraints)')
 
     # Model parameters
-    parser.add_argument('--model', default='mae_vit_1dcnn', type=str, metavar='MODEL',
+    parser.add_argument('--model', default='mae_vim_1dcnn', type=str, metavar='MODEL',
                         help='Name of model to train')
 
-    parser.add_argument('--input_size', default=(12, 1000), type=int,
+    parser.add_argument('--input_size', default=(12, 2500), type=int,
                         help='images input size')
 
     parser.add_argument('--mask_ratio', default=0.75, type=float,
@@ -134,7 +134,7 @@ def main(args):
         
     # Physionet Dataset  - change range n from (1, 46) to the number of folders you need
     # Custom Dataloader, arguments - data_path, start file and end file (from the 46 folders)
-    dataset = CustomDataset(args.data_path, args.start, args.end)
+    dataset = CustomDataset(args.data_path)
     sampler_train = torch.utils.data.RandomSampler(dataset)
     
     if args.log_dir is not None:
@@ -183,11 +183,6 @@ def main(args):
 
     print(f"Start training for {args.epochs} epochs")
     start_time = time.time()
-
-#    if args.resume != '':
-#        checkpoint = torch.load("output_dir/checkpoint-" + str(args.start_epoch) + ".pth")
-#        model.load_state_dict(checkpoint['model'])
-#        epoch = checkpoint['epoch']
 
     for epoch in range(args.start_epoch, args.epochs):
         train_stats = train_one_epoch(
