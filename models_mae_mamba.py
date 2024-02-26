@@ -283,7 +283,7 @@ class VisionMambaEncode(nn.Module):
                  if_rope=False,
                  if_rope_residual=False,
                  bimamba_type="none",
-                 if_cls_token=False,
+                 if_cls_token=False,mask_ratio = 0.75,
                  **kwargs):
         factory_kwargs = {"device": device, "dtype": dtype}
         # add factory_kwargs into kwargs
@@ -297,6 +297,7 @@ class VisionMambaEncode(nn.Module):
         self.if_rope_residual = if_rope_residual
         self.if_cls_token = if_cls_token
         self.num_tokens = 1 if if_cls_token else 0
+        self.mask_ratio = mask_ratio
 
         # pretrain parameters
         # self.num_classes = num_classes
@@ -422,7 +423,7 @@ class VisionMambaEncode(nn.Module):
             x = x + self.pos_embed
             x = self.pos_drop(x)
 
-        x, mask, ids_restore = self.random_masking(x, mask_ratio)
+        x, mask, ids_restore = self.random_masking(x, self.mask_ratio)
 
         # mamba impl
         residual = None
@@ -486,11 +487,36 @@ class MaskedAutoencoderVim(nn.Module):
         rms_norm=True, residual_in_fp32=True, fused_add_norm=True, 
         final_pool_type='all', if_abs_pos_embed=True, if_rope=False, 
         if_rope_residual=False, bimamba_type="v2",
-        decoder_embed_dim=96, decoder_depth= 8, mask_ratio = 0.75, norm_pix_loss=False):
+        decoder_embed_dim=96, decoder_depth= 8, mask_ratio = 0.75, norm_pix_loss=False, if_cls_token = True
+                ,ssm_cfg=None, 
+                 drop_rate=0.,
+                 drop_path_rate=0.1,
+                 norm_epsilon: float = 1e-5, 
+                 initializer_cfg=None,
+                 device=None,
+                 dtype=None,
+                 ft_seq_len=None,
+                 pt_hw_seq_len=14,
+                 decoder_final_pool_type='all',in_chans = 1, **kwargs
+):
         super().__init__()
+        factory_kwargs = {"device": device, "dtype": dtype}
+        # add factory_kwargs into kwargs
+        kwargs.update(factory_kwargs) 
+
 
         # --------------------------------------------------------------------------
-        self.encoder =  VisionMambaEncode(img_size=(12, ), patch_size=(1, 40), embed_dim=192, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='mean', if_abs_pos_embed=True, if_rope=False, if_rope_residual=False, bimamba_type="v2")
+        self.encoder =  VisionMambaEncode(img_size=img_size, patch_size=patch_size, embed_dim=192, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='all', if_abs_pos_embed=True, if_rope=False, if_rope_residual=False, bimamba_type="v2", mask_ratio = 0.75,)
+        
+        self.residual_in_fp32 = residual_in_fp32
+        self.fused_add_norm = fused_add_norm
+        self.final_pool_type = final_pool_type
+        self.if_abs_pos_embed = if_abs_pos_embed
+        self.if_rope = if_rope
+        self.if_rope_residual = if_rope_residual
+        self.if_cls_token = if_cls_token
+        self.num_tokens = 1 if if_cls_token else 0
+        self.decoder_if_cls_token = False
 
         # self.norm = norm_layer(embed_dim)
         # --------------------------------------------------------------------------
@@ -502,9 +528,13 @@ class MaskedAutoencoderVim(nn.Module):
 
         # if if_cls_token:
         #     self.decoder_cls_token = nn.Parameter(torch.zeros(1, 1, self.embed_dim))
+        
+        self.patch_embed = PatchEmbed(
+            img_size=img_size, patch_size=patch_size, in_chans=1, embed_dim=embed_dim)
+        num_patches = self.patch_embed.num_patches
 
         if if_abs_pos_embed:
-            self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches + self.num_tokens, self.embed_dim))
+            self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches + self.num_tokens, decoder_embed_dim))
             self.decoder_pos_drop = nn.Dropout(p=drop_rate)
 
         if if_rope:
@@ -545,7 +575,6 @@ class MaskedAutoencoderVim(nn.Module):
             decoder_embed_dim, eps=norm_epsilon, **factory_kwargs
         )
 
-        self.decoder_norm = norm_layer(decoder_embed_dim)
         self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size[0]* patch_size[1] * in_chans, bias=True) # decoder to patch
         # --------------------------------------------------------------------------
 
@@ -555,7 +584,7 @@ class MaskedAutoencoderVim(nn.Module):
         self.apply(segm_init_weights)
         # self.head.apply(segm_init_weights)
         if if_abs_pos_embed:
-            trunc_normal_(self.pos_embed, std=.02)
+            trunc_normal_(self.decoder_pos_embed, std=.02)
 
         # mamba init
         self.apply(
@@ -740,6 +769,16 @@ def mae_vim_1dcnn(**kwargs):
         rms_norm=True, residual_in_fp32=True, fused_add_norm=True, 
         final_pool_type='all', if_abs_pos_embed=True, if_rope=False, 
         if_rope_residual=False, bimamba_type="v2",
-        decoder_embed_dim=96, decoder_depth= 8, mask_ratio = 0.75,
+        decoder_embed_dim=96, decoder_depth= 8, mask_ratio = 0.75,if_cls_token = True
+                ,ssm_cfg=None, 
+                 drop_rate=0.,
+                 drop_path_rate=0.1,
+                 norm_epsilon = 1e-5, 
+                 initializer_cfg=None,
+                 device=None,
+                 dtype=None,
+                 ft_seq_len=None,
+                 pt_hw_seq_len=14,
+                 decoder_final_pool_type='all',
         **kwargs)
     return model
