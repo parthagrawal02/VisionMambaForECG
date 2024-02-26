@@ -259,7 +259,6 @@ class PatchEmbed(nn.Module):
         x = self.norm(x)
         return x
 
-
 class VisionMamba(nn.Module):
     def __init__(self, 
                  img_size=(12, 2500), 
