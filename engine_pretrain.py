@@ -12,12 +12,12 @@
 import math
 import sys
 from typing import Iterable
-
+import s3fs
 import torch
-
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 import util.misc as misc
 import util.lr_sched as lr_sched
-
+import io
 
 def train_one_epoch(model: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
@@ -36,19 +36,27 @@ def train_one_epoch(model: torch.nn.Module,
 
     if log_writer is not None:
         print('log_dir: {}'.format(log_writer.log_dir))
+    
+    count_nans = 0
 
-    for data_iter_step, (samples, _) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
-
-
+    for data_iter_step, (samples, idx) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
+        
         # we use a per iteration (instead of per epoch) lr scheduler
         if data_iter_step % accum_iter == 0:
             lr_sched.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, args)
         
         if args.cuda is not None:
             with torch.cuda.amp.autocast():
-                loss, _, _ = model(samples.to(device), mask_ratio=args.mask_ratio)
+                loss, _, _, currupt_img = model(samples.to(device), mask_ratio=args.mask_ratio)
         else:
-            loss, _, _ = model(samples, mask_ratio=args.mask_ratio)
+            loss, _, _, currupt_img = model(samples, mask_ratio=args.mask_ratio)
+        
+        if torch.isnan(loss):
+            loss = torch.nan_to_num(loss)
+            count_nans += 1
+        if torch.all(samples == 0):
+            print(samples[0][0], idx)
+            count_nans += 1
 
         loss_value = loss.item()
 
@@ -64,7 +72,6 @@ def train_one_epoch(model: torch.nn.Module,
         if args.cuda is not None:
             torch.cuda.synchronize()
 
-
         metric_logger.update(loss=loss_value)
 
         lr = optimizer.param_groups[0]["lr"]
@@ -78,9 +85,27 @@ def train_one_epoch(model: torch.nn.Module,
             epoch_1000x = int((data_iter_step / len(data_loader) + epoch) * 1000)
             log_writer.add_scalar('train_loss', loss_value_reduce, epoch_1000x)
             log_writer.add_scalar('lr', lr, epoch_1000x)
-
-
+    
+    s3 = s3fs.S3FileSystem()
+    fig = misc.plot_reconstruction(currupt_img, samples)
+    file_path = "images/checkpoint-%s.png" % str(epoch)  # Update this to your desired path in the bucket
+    canvas = FigureCanvasAgg(fig)
+    # Prepare an in-memory binary stream buffer
+    imdata = io.BytesIO()
+    # Write the canvas object as a PNG file to the buffer
+    canvas.print_png(imdata)
+    # Initialize an S3FileSystem instance
+    # You can use default credentials or specify them explicitly
+    # Specify your bucket and file path
+    bucket_name = 's3://sagemaker-us-east-1-818515436582/MAE_Weights'
+    # Upload the PNG image to your S3 bucket
+    with s3.open(f'{bucket_name}/{file_path}', 'wb') as f:
+        f.write(imdata.getvalue())
+        
+    print(f"File uploaded to s3://{bucket_name}/{file_path}")
+    
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger)
+    print("Number of NaN Losses:", count_nans) 
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}

@@ -47,7 +47,7 @@ class VisionRotaryEmbedding(nn.Module):
         pt_seq_len,
         ft_seq_len=None,
         custom_freqs = None,
-        freqs_for = 'lang',
+        freqs_for = 'pixel',
         theta = 10000,
         max_freq = 10,
         num_freqs = 1,

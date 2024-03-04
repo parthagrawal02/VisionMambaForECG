@@ -15,7 +15,8 @@ import os
 import time
 from collections import defaultdict, deque
 from pathlib import Path
-
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.distributed as dist
 from torch import inf
@@ -305,7 +306,6 @@ def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler):
                 'scaler': loss_scaler.state_dict(),
                 'args': args,
             }
-
             save_on_master(to_save, checkpoint_path)
     else:
         client_state = {'epoch': epoch}
@@ -338,3 +338,17 @@ def all_reduce_mean(x):
         return x_reduce.item()
     else:
         return x
+    
+def plot_reconstruction(currupt_img, samples, size = 1):
+
+    fig = plt.figure(figsize=(12, 48))
+    for idx in np.arange(size):
+        fig, ax = plt.subplots(2, figsize=(10, 6))
+        ax[0].plot(samples[0, 0, idx].numpy())
+        ax[0].set_title('Original ECG')
+
+        # Plot processed ECG
+        ax[1].plot(currupt_img[0, 0, idx].cpu().detach().numpy())
+        ax[1].set_title('Processed ECG')
+        plt.tight_layout()
+    return fig

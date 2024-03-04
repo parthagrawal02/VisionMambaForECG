@@ -14,6 +14,7 @@ import json
 import numpy as np
 import os
 import time
+import s3fs
 
 from pathlib import Path
 
@@ -35,9 +36,10 @@ import timm.optim.optim_factory as optim_factory
 
 import util.misc as misc
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
-from util.datasets_h5 import CustomDataset
-import models_mae_mamba
+# from util.datasets_h5 import CustomDataset
+from models_mae_mamba import mae_vim_1dcnn
 from torchsummary import summary
+from ecg_dataset import ECGDataset
 
 from engine_pretrain import train_one_epoch
 
@@ -70,31 +72,31 @@ def get_args_parser():
 
     parser.add_argument('--lr', type=float, default=None, metavar='LR',
                         help='learning rate (absolute lr)')
-    parser.add_argument('--blr', type=float, default=1e-3, metavar='LR',
+    parser.add_argument('--blr', type=float, default=1.5e-4, metavar='LR',
                         help='base learning rate: absolute_lr = base_lr * total_batch_size / 256')
-    parser.add_argument('--min_lr', type=float, default=0., metavar='LR',
+    parser.add_argument('--min_lr', type=float, default=1e-5, metavar='LR',
                         help='lower lr bound for cyclic schedulers that hit 0')
 
-    parser.add_argument('--warmup_epochs', type=int, default=40, metavar='N',
+    parser.add_argument('--warmup_epochs', type=int, default=20, metavar='N',
                         help='epochs to warmup LR')
 
     # Dataset parameters
-    parser.add_argument('--data_path', default='/Users/parthagrawal02/Desktop/Carelog/ECG_CNN', type=str,
+    parser.add_argument('--data_path', default='s3://carelog/dataset/public/mimic-iv-ecg-diagnostic-electrocardiogram-matched-subset-1.0/zarr-10sec-250hz-fft/', type=str,
                         help='dataset path')
 
-    parser.add_argument('--output_dir', default='./output_dir',
+    parser.add_argument('--output_dir', default=os.environ.get("SM_OUTPUT_DATA_DIR"),
                         help='path where to save, empty for no saving')
-    parser.add_argument('--log_dir', default='./output_dir',
+    parser.add_argument('--log_dir', default=os.environ.get("SM_OUTPUT_DATA_DIR"),
                         help='path where to tensorboard log')
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
-    parser.add_argument('--seed', default=0, type=int)
+    parser.add_argument('--seed', default=18, type=int)
     parser.add_argument('--resume', default='',
                         help='resume from checkpoint')
 
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
-    parser.add_argument('--num_workers', default=1, type=int)
+    parser.add_argument('--num_workers', default=4, type=int)
     parser.add_argument('--pin_mem', action='store_true',
                         help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
     parser.add_argument('--no_pin_mem', action='store_false', dest='pin_mem')
@@ -124,17 +126,18 @@ def main(args):
     print("{}".format(args).replace(', ', ',\n'))
     
     device = torch.device(args.device)
+    s3 = s3fs.S3FileSystem()
 
     # fix the seed for reproducibility
-    seed = args.seed + misc.get_rank()
-    torch.manual_seed(seed)
-    np.random.seed(seed)
+    # seed = args.seed + misc.get_rank()
+    # torch.manual_seed(seed)
+    # np.random.seed(seed)
     if args.cuda is not None:
         cudnn.benchmark = True
         
     # Physionet Dataset  - change range n from (1, 46) to the number of folders you need
     # Custom Dataloader, arguments - data_path, start file and end file (from the 46 folders)
-    dataset = CustomDataset(args.data_path)
+    dataset = ECGDataset(args.data_path)
     sampler_train = torch.utils.data.RandomSampler(dataset)
     
     if args.log_dir is not None:
@@ -150,12 +153,11 @@ def main(args):
         pin_memory=args.pin_mem,
         drop_last=True,
     )
-    
     # define the model
-    model = models_mae.__dict__[args.model](norm_pix_loss=args.norm_pix_loss)
+    model = mae_vim_1dcnn(norm_pix_loss=args.norm_pix_loss)
     if args.cuda is not None:
         model.to(device)
-    model = model.double()
+    # model = model.double()
     model.train()
     model_without_ddp = model
     print("Model = %s" % str(model_without_ddp))
@@ -194,10 +196,16 @@ def main(args):
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                         'epoch': epoch,}
         
-        if args.output_dir and (epoch % 2 == 0 or epoch + 1 == args.epochs):
+        if args.output_dir and (epoch % 20 == 0 or epoch + 1 == args.epochs):
             misc.save_model(
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch)
+            bucket = 's3://sagemaker-us-east-1-818515436582/MAE_Weights/'
+            s3_path = "checkpoint-%s" % str(epoch)  # Update this to your desired path in the bucket
+            full_s3_path = f"{bucket}/{s3_path}"
+            local_path = Path(args.output_dir) / ('checkpoint-%s.pth' % str(epoch))
+            s3.put(local_path, full_s3_path)
+                
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                         'epoch': epoch,}
 

@@ -474,10 +474,10 @@ class VisionMambaEncode(nn.Module):
             raise NotImplementedError
 
     def forward(self, x, return_features=False, inference_params=None):
-        x = x[:, None, :, :]
-        x = self.forward_features(x, inference_params)
+        # x = x[:, None, :, :]
+        x, mask, ids_restore = self.forward_features(x, inference_params)
         if return_features:
-            return x
+            return x, mask, ids_restore
         return x, mask, ids_restore
 
 class MaskedAutoencoderVim(nn.Module):
@@ -489,7 +489,7 @@ class MaskedAutoencoderVim(nn.Module):
         if_rope_residual=False, bimamba_type="v2",
         decoder_embed_dim=96, decoder_depth= 8, mask_ratio = 0.75, norm_pix_loss=False, if_cls_token = True
                 ,ssm_cfg=None, 
-                 drop_rate=0.,
+                 drop_rate=0.2,
                  drop_path_rate=0.1,
                  norm_epsilon: float = 1e-5, 
                  initializer_cfg=None,
@@ -506,7 +506,7 @@ class MaskedAutoencoderVim(nn.Module):
 
 
         # --------------------------------------------------------------------------
-        self.encoder =  VisionMambaEncode(img_size=img_size, patch_size=patch_size, embed_dim=192, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='all', if_abs_pos_embed=True, if_rope=False, if_rope_residual=False, bimamba_type="v2", mask_ratio = 0.75,)
+        self.encoder = VisionMambaEncode(img_size=img_size, patch_size=patch_size, embed_dim=192, depth=24, rms_norm=True, residual_in_fp32=True, fused_add_norm=True, final_pool_type='all', if_abs_pos_embed=True, if_rope=False, if_rope_residual=False, bimamba_type="v2", mask_ratio = 0.75,)
         
         self.residual_in_fp32 = residual_in_fp32
         self.fused_add_norm = fused_add_norm
@@ -517,6 +517,7 @@ class MaskedAutoencoderVim(nn.Module):
         self.if_cls_token = if_cls_token
         self.num_tokens = 1 if if_cls_token else 0
         self.decoder_if_cls_token = False
+        self.decoder_final_pool_type = decoder_final_pool_type
 
         # self.norm = norm_layer(embed_dim)
         # --------------------------------------------------------------------------
@@ -660,7 +661,7 @@ class MaskedAutoencoderVim(nn.Module):
 
         return self.encoder(x)
 
-    def forward_decoder(self, x, ids_restore):
+    def forward_decoder(self, x, ids_restore, inference_params=None):
         # embed tokens
         x = self.decoder_embed(x)
 
@@ -696,12 +697,12 @@ class MaskedAutoencoderVim(nn.Module):
             hidden_states = self.norm_f(residual.to(dtype=self.norm_f.weight.dtype))
         else:
             # Set prenorm=False here since we don't need the residual
-            fused_add_norm_fn = rms_norm_fn if isinstance(self.norm_f, RMSNorm) else layer_norm_fn
+            fused_add_norm_fn = rms_norm_fn if isinstance(self.decoder_norm, RMSNorm) else layer_norm_fn
             hidden_states = fused_add_norm_fn(
-                self.drop_path(hidden_states),
-                self.norm_f.weight,
-                self.norm_f.bias,
-                eps=self.norm_f.eps,
+                self.decoder_drop_path(hidden_states),
+                self.decoder_norm.weight,
+                self.decoder_norm.bias,
+                eps=self.decoder_norm.eps,
                 residual=residual,
                 prenorm=False,
                 residual_in_fp32=self.residual_in_fp32,
@@ -755,12 +756,19 @@ class MaskedAutoencoderVim(nn.Module):
 
     def forward(self, imgs, mask_ratio=0.75):
         # print(imgs.size())
+        # imgs = imgs[:, None, :, :]
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
         # print(latent.size())
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
         # print(pred.size())
+        img_patched = self.patchify(imgs)
+        currupt_img = torch.zeros(img_patched.size())
+        mask1 = mask.unsqueeze(-1).expand_as(pred)
+        currupt_img = torch.where(mask1 == 1, pred, img_patched)
+        currupt_img = self.unpatchify(currupt_img)
+
         loss = self.forward_loss(imgs, pred, mask)
-        return loss, pred, mask
+        return loss, pred, mask, currupt_img
 
 # Model architecture as described in the paper.
 def mae_vim_1dcnn(**kwargs):
@@ -771,7 +779,7 @@ def mae_vim_1dcnn(**kwargs):
         if_rope_residual=False, bimamba_type="v2",
         decoder_embed_dim=96, decoder_depth= 8, mask_ratio = 0.75,if_cls_token = True
                 ,ssm_cfg=None, 
-                 drop_rate=0.,
+                 drop_rate=0.2,
                  drop_path_rate=0.1,
                  norm_epsilon = 1e-5, 
                  initializer_cfg=None,
