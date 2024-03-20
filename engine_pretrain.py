@@ -45,10 +45,9 @@ def train_one_epoch(model: torch.nn.Module,
         if data_iter_step % accum_iter == 0:
             lr_sched.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, args)
         
-        if args.cuda is not None:
-            with torch.cuda.amp.autocast():
-                loss, _, _, currupt_img = model(samples.to(device), mask_ratio=args.mask_ratio)
-        else:
+        samples = samples.to(device, non_blocking=True)
+
+        with torch.cuda.amp.autocast():
             loss, _, _, currupt_img = model(samples, mask_ratio=args.mask_ratio)
         
         if torch.isnan(loss):
@@ -69,8 +68,8 @@ def train_one_epoch(model: torch.nn.Module,
                     update_grad=(data_iter_step + 1) % accum_iter == 0)
         if (data_iter_step + 1) % accum_iter == 0:
             optimizer.zero_grad()
-        if args.cuda is not None:
-            torch.cuda.synchronize()
+        
+        torch.cuda.synchronize()
 
         metric_logger.update(loss=loss_value)
 

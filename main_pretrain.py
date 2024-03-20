@@ -132,15 +132,21 @@ def main(args):
     # seed = args.seed + misc.get_rank()
     # torch.manual_seed(seed)
     # np.random.seed(seed)
-    if args.cuda is not None:
-        cudnn.benchmark = True
+    cudnn.benchmark = True
         
-    # Physionet Dataset  - change range n from (1, 46) to the number of folders you need
-    # Custom Dataloader, arguments - data_path, start file and end file (from the 46 folders)
     dataset = ECGDataset(args.data_path)
-    sampler_train = torch.utils.data.RandomSampler(dataset)
-    
-    if args.log_dir is not None:
+
+    if True:  # args.distributed:
+        num_tasks = misc.get_world_size()
+        global_rank = misc.get_rank()
+        sampler_train = torch.utils.data.DistributedSampler(
+            dataset, num_replicas=num_tasks, rank=global_rank, shuffle=True
+        )
+        print("Sampler_train = %s" % str(sampler_train))
+    else:
+        sampler_train = torch.utils.data.RandomSampler(dataset_train)
+
+    if global_rank == 0 and args.log_dir is not None:
         os.makedirs(args.log_dir, exist_ok=True)
         log_writer = SummaryWriter(log_dir=args.log_dir)
     else:
@@ -155,8 +161,8 @@ def main(args):
     )
     # define the model
     model = mae_vim_1dcnn(norm_pix_loss=args.norm_pix_loss)
-    if args.cuda is not None:
-        model.to(device)
+    
+    model.to(device)
     # model = model.double()
     model.train()
     model_without_ddp = model
@@ -173,12 +179,14 @@ def main(args):
     print("accumulate grad iterations: %d" % args.accum_iter)
     print("effective batch size: %d" % eff_batch_size)
 
+    if args.distributed:
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
+        model_without_ddp = model.module
     
     # following timm: set wd as 0 for bias and norm layers
     param_groups = optim_factory.param_groups_weight_decay(model_without_ddp, args.weight_decay)
     optimizer = torch.optim.AdamW(param_groups, lr=args.lr, betas=(0.9, 0.95))
-    # print(param_groups)
-    # print(optimizer)
+    print(optimizer)
     loss_scaler = NativeScaler()
 
     misc.load_model(args=args, model_without_ddp=model_without_ddp, optimizer=optimizer, loss_scaler=loss_scaler)
@@ -187,15 +195,14 @@ def main(args):
     start_time = time.time()
 
     for epoch in range(args.start_epoch, args.epochs):
+        if args.distributed:
+            data_loader_train.sampler.set_epoch(epoch)
         train_stats = train_one_epoch(
             model, data_loader_train,
             optimizer, device, epoch, loss_scaler,
             log_writer=log_writer,
             args=args
-        )
-        log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-                        'epoch': epoch,}
-        
+        )        
         if args.output_dir and (epoch % 20 == 0 or epoch + 1 == args.epochs):
             misc.save_model(
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
@@ -209,7 +216,7 @@ def main(args):
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                         'epoch': epoch,}
 
-        if args.output_dir:
+        if args.output_dir and misc.is_main_process():
             if log_writer is not None:
                 log_writer.flush()
             with open(os.path.join(args.output_dir, "log.txt"), mode="a", encoding="utf-8") as f:
