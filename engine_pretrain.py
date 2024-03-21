@@ -48,7 +48,7 @@ def train_one_epoch(model: torch.nn.Module,
         samples = samples.to(device, non_blocking=True)
 
         with torch.cuda.amp.autocast():
-            loss, _, _, currupt_img = model(samples, mask_ratio=args.mask_ratio)
+            loss, _, _ = model(samples, mask_ratio=args.mask_ratio)
         
         if torch.isnan(loss):
             loss = torch.nan_to_num(loss)
@@ -87,22 +87,22 @@ def train_one_epoch(model: torch.nn.Module,
     
     if args.s3:
         s3 = s3fs.S3FileSystem()
-        fig = misc.plot_reconstruction(currupt_img, samples)
-        file_path = "images/checkpoint-%s.png" % str(epoch)  # Update this to your desired path in the bucket
-        canvas = FigureCanvasAgg(fig)
-        # Prepare an in-memory binary stream buffer
-        imdata = io.BytesIO()
-        # Write the canvas object as a PNG file to the buffer
-        canvas.print_png(imdata)
-        # Initialize an S3FileSystem instance
-        # You can use default credentials or specify them explicitly
-        # Specify your bucket and file path
-        bucket_name = 's3://sagemaker-us-east-1-818515436582/MAE_Weights'
-        # Upload the PNG image to your S3 bucket
-        with s3.open(f'{bucket_name}/{file_path}', 'wb') as f:
-            f.write(imdata.getvalue())
+        # fig = misc.plot_reconstruction(currupt_img, samples)
+        # file_path = "images/checkpoint-%s.png" % str(epoch)  # Update this to your desired path in the bucket
+        # canvas = FigureCanvasAgg(fig)
+        # # Prepare an in-memory binary stream buffer
+        # imdata = io.BytesIO()
+        # # Write the canvas object as a PNG file to the buffer
+        # canvas.print_png(imdata)
+        # # Initialize an S3FileSystem instance
+        # # You can use default credentials or specify them explicitly
+        # # Specify your bucket and file path
+        # bucket_name = 's3://sagemaker-us-east-1-818515436582/MAE_Weights'
+        # # Upload the PNG image to your S3 bucket
+        # with s3.open(f'{bucket_name}/{file_path}', 'wb') as f:
+        #     f.write(imdata.getvalue())
             
-        print(f"File uploaded to s3://{bucket_name}/{file_path}")
+        # print(f"File uploaded to s3://{bucket_name}/{file_path}")
     
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
