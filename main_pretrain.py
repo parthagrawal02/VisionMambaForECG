@@ -37,7 +37,8 @@ import timm.optim.optim_factory as optim_factory
 import util.misc as misc
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 # from util.datasets_h5 import CustomDataset
-from models_mae_mamba import mae_vim_1dcnn
+# from models_mae_mamba import mae_vim_1dcnn
+from models_mae import mae_vit_1dcnn
 from torchsummary import summary
 from test_dataset import ECGDataset
 
@@ -160,7 +161,7 @@ def main(args):
         drop_last=True,
     )
     # define the model
-    model = mae_vim_1dcnn(norm_pix_loss=args.norm_pix_loss)
+    model = mae_vit_1dcnn(norm_pix_loss=args.norm_pix_loss)
     
     model.to(device)
     # model = model.double()
