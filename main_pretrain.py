@@ -39,7 +39,7 @@ from util.misc import NativeScalerWithGradNormCount as NativeScaler
 # from util.datasets_h5 import CustomDataset
 from models_mae_mamba import mae_vim_1dcnn
 from torchsummary import summary
-from ecg_dataset import ECGDataset
+from test_dataset import ECGDataset
 
 from engine_pretrain import train_one_epoch
 
@@ -115,9 +115,8 @@ def get_args_parser():
     parser.add_argument('--dist_on_itp', action='store_true')
     parser.add_argument('--dist_url', default='env://',
                         help='url used to set up distributed training')
-
+    parser.add_argument('--s3', default = True, type = bool)
     return parser
-
 
 def main(args):
     misc.init_distributed_mode(args)
@@ -126,7 +125,8 @@ def main(args):
     print("{}".format(args).replace(', ', ',\n'))
     
     device = torch.device(args.device)
-    s3 = s3fs.S3FileSystem()
+    if args.s3:
+        s3 = s3fs.S3FileSystem()
 
     # fix the seed for reproducibility
     # seed = args.seed + misc.get_rank()
@@ -207,11 +207,12 @@ def main(args):
             misc.save_model(
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch)
-            bucket = 's3://sagemaker-us-east-1-818515436582/MAE_Weights/'
-            s3_path = "checkpoint-%s" % str(epoch)  # Update this to your desired path in the bucket
-            full_s3_path = f"{bucket}/{s3_path}"
-            local_path = Path(args.output_dir) / ('checkpoint-%s.pth' % str(epoch))
-            s3.put(local_path, full_s3_path)
+            if args.s3:
+                bucket = 's3://sagemaker-us-east-1-818515436582/MAE_Weights/'
+                s3_path = "checkpoint-%s" % str(epoch)  # Update this to your desired path in the bucket
+                full_s3_path = f"{bucket}/{s3_path}"
+                local_path = Path(args.output_dir) / ('checkpoint-%s.pth' % str(epoch))
+                s3.put(local_path, full_s3_path)
                 
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                         'epoch': epoch,}

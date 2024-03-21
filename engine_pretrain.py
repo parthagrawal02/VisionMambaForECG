@@ -85,23 +85,24 @@ def train_one_epoch(model: torch.nn.Module,
             log_writer.add_scalar('train_loss', loss_value_reduce, epoch_1000x)
             log_writer.add_scalar('lr', lr, epoch_1000x)
     
-    s3 = s3fs.S3FileSystem()
-    fig = misc.plot_reconstruction(currupt_img, samples)
-    file_path = "images/checkpoint-%s.png" % str(epoch)  # Update this to your desired path in the bucket
-    canvas = FigureCanvasAgg(fig)
-    # Prepare an in-memory binary stream buffer
-    imdata = io.BytesIO()
-    # Write the canvas object as a PNG file to the buffer
-    canvas.print_png(imdata)
-    # Initialize an S3FileSystem instance
-    # You can use default credentials or specify them explicitly
-    # Specify your bucket and file path
-    bucket_name = 's3://sagemaker-us-east-1-818515436582/MAE_Weights'
-    # Upload the PNG image to your S3 bucket
-    with s3.open(f'{bucket_name}/{file_path}', 'wb') as f:
-        f.write(imdata.getvalue())
-        
-    print(f"File uploaded to s3://{bucket_name}/{file_path}")
+    if args.s3:
+        s3 = s3fs.S3FileSystem()
+        fig = misc.plot_reconstruction(currupt_img, samples)
+        file_path = "images/checkpoint-%s.png" % str(epoch)  # Update this to your desired path in the bucket
+        canvas = FigureCanvasAgg(fig)
+        # Prepare an in-memory binary stream buffer
+        imdata = io.BytesIO()
+        # Write the canvas object as a PNG file to the buffer
+        canvas.print_png(imdata)
+        # Initialize an S3FileSystem instance
+        # You can use default credentials or specify them explicitly
+        # Specify your bucket and file path
+        bucket_name = 's3://sagemaker-us-east-1-818515436582/MAE_Weights'
+        # Upload the PNG image to your S3 bucket
+        with s3.open(f'{bucket_name}/{file_path}', 'wb') as f:
+            f.write(imdata.getvalue())
+            
+        print(f"File uploaded to s3://{bucket_name}/{file_path}")
     
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
