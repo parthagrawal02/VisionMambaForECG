@@ -41,7 +41,7 @@ class ECGDataset(Dataset):
         X, idz = next(self.data_generator)
         # print(X[0][0])
         ecg_tensor = torch.from_numpy(X)
-        idz = torch.from_numpy(idz)
+        idz = torch.tensor(idz)
         img_tensor = ecg_tensor[None, :, :]
         mean = img_tensor.mean(dim=-1, keepdim=True)
         var = img_tensor.var(dim=-1, keepdim=True)
