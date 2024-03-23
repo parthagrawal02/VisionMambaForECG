@@ -119,12 +119,12 @@ def get_args_parser():
     parser.add_argument('--s3', default = True, type = bool)
     return parser
 
-def load_dataset(queue, data_path):
+def load_dataset(queue, data_path = "fs"):
     dataset = ECGDataset(data_path)
     queue.put(dataset)
 
 
-def main(args):
+def main(args, queue):
     misc.init_distributed_mode(args)
 
     print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
@@ -237,7 +237,7 @@ def main(args):
 
 
 if __name__ == '__main__':
-    
+
     world_size = torch.cuda.device_count()
     queue = mp.Queue()
     # Load the dataset in one process
@@ -245,7 +245,7 @@ if __name__ == '__main__':
     p.start()
     p.join()
     # Train in other processes
-    mp.spawn(main, args=(world_size, queue), nprocs=world_size-1, join=True)
+    mp.spawn(main, args=(queue), nprocs=world_size-1, join=True)
     args = get_args_parser()
     args = args.parse_args()
     if args.output_dir:
