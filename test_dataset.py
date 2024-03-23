@@ -40,8 +40,8 @@ class ECGDataset(Dataset):
     def __getitem__(self, idx):
         X, idz = next(self.data_generator)
         # print(X[0][0])
-        ecg_tensor = X.astype(np.float32)
-        idz = int(idz)
+        ecg_tensor = torch.from_numpy(X.astype(np.float32))
+        idz = torch.tensor(idz, dtype=torch.float32)
         img_tensor = ecg_tensor[None, :, :]
         mean = img_tensor.mean(dim=-1, keepdim=True)
         var = img_tensor.var(dim=-1, keepdim=True)
