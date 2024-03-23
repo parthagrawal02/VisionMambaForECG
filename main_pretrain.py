@@ -17,7 +17,7 @@ import time
 import s3fs
 
 from pathlib import Path
-
+import torch.multiprocessing as mp
 import torch.nn.functional as F
 # import wfdb
 # from wfdb import processing
@@ -119,6 +119,11 @@ def get_args_parser():
     parser.add_argument('--s3', default = True, type = bool)
     return parser
 
+def load_dataset(queue, data_path):
+    dataset = ECGDataset(data_path)
+    queue.put(dataset)
+
+
 def main(args):
     misc.init_distributed_mode(args)
 
@@ -136,6 +141,8 @@ def main(args):
     cudnn.benchmark = True
         
     dataset = ECGDataset(args.data_path)
+    dataset = queue.get()
+
 
     if True:  # args.distributed:
         num_tasks = misc.get_world_size()
@@ -230,6 +237,15 @@ def main(args):
 
 
 if __name__ == '__main__':
+    
+    world_size = torch.cuda.device_count()
+    queue = mp.Queue()
+    # Load the dataset in one process
+    p = mp.Process(target=load_dataset, args=(queue,))
+    p.start()
+    p.join()
+    # Train in other processes
+    mp.spawn(main, args=(world_size, queue), nprocs=world_size-1, join=True)
     args = get_args_parser()
     args = args.parse_args()
     if args.output_dir:
