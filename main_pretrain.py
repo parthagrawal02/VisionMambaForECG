@@ -252,7 +252,7 @@ if __name__ == '__main__':
     args = args.parse_args()
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
-    queue.size()
+    print(queue.qsize())
     children = []
     for i in range(world_size):
         subproc = mp.Process(target=main, args=(i, args, queue))
