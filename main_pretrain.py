@@ -145,7 +145,7 @@ def main(rank, args, queue):
     cudnn.benchmark = True
     print("trying to get queue")
     # dataset = ECGDataset(args.data_path)
-    dataset = queue.get()
+    dataset = queue
     print("I am ahead of queue")
 
     if True:  # args.distributed:
@@ -242,22 +242,17 @@ def main(rank, args, queue):
 
 if __name__ == '__main__':
     world_size = torch.cuda.device_count()
-    queue = mp.Queue()
-    # Load the dataset in one process
-    p = mp.Process(target=load_dataset, args=(queue,))
-    p.start()
-    p.join()
-    dataset = queue.get()
+    dataset = ECGDataset(data_path="")
+    dataset.share_memory()
     print(dataset[0][0])
     # Train in other processes
     args = get_args_parser()
     args = args.parse_args()
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
-    print(queue.qsize())
     children = []
     for i in range(world_size):
-        subproc = mp.Process(target=main, args=(i, args, queue))
+        subproc = mp.Process(target=main, args=(i, args, dataset))
         children.append(subproc)
         subproc.start()
 
