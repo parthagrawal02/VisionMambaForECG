@@ -126,10 +126,10 @@ def load_dataset(queue, data_path = "fs"):
 
 def main(rank, args, queue):
 
-    os.environ["RANK"] = rank
-    os.environ["WORLD_SIZE"] = args.world_size
-    os.environ['LOCAL_RANK'] = rank
-    
+    os.environ["RANK"] = str(rank)
+    os.environ["WORLD_SIZE"] = str(args.world_size)
+    os.environ['LOCAL_RANK'] = str(rank)
+
     misc.init_distributed_mode(args)
     print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
     print("{}".format(args).replace(', ', ',\n'))
