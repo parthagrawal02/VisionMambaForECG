@@ -124,9 +124,13 @@ def load_dataset(queue, data_path = "fs"):
     queue.put(dataset)
 
 
-def main(args, queue):
-    misc.init_distributed_mode(args)
+def main(rank, args, queue):
 
+    os.environ["RANK"] = rank
+    os.environ["WORLD_SIZE"] = args.world_size
+    os.environ['LOCAL_RANK'] = rank
+    
+    misc.init_distributed_mode(args)
     print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
     print("{}".format(args).replace(', ', ',\n'))
     
@@ -140,7 +144,7 @@ def main(args, queue):
     # np.random.seed(seed)
     cudnn.benchmark = True
         
-    dataset = ECGDataset(args.data_path)
+    # dataset = ECGDataset(args.data_path)
     dataset = queue.get()
 
 
