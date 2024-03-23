@@ -237,7 +237,6 @@ def main(args, queue):
 
 
 if __name__ == '__main__':
-
     world_size = torch.cuda.device_count()
     queue = mp.Queue()
     # Load the dataset in one process
@@ -245,7 +244,7 @@ if __name__ == '__main__':
     p.start()
     p.join()
     # Train in other processes
-    mp.spawn(main, args=(queue), nprocs=world_size-1, join=True)
+    mp.spawn(main, args=(queue,), nprocs=world_size, join=True)
     args = get_args_parser()
     args = args.parse_args()
     if args.output_dir:
