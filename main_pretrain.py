@@ -253,7 +253,16 @@ if __name__ == '__main__':
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
-    mp.spawn(main, args=(args, queue), nprocs=world_size, join=True)
+    children = []
+    for i in range(world_size):
+        subproc = mp.Process(target=main, args=(i, args, queue))
+        children.append(subproc)
+        subproc.start()
+
+    for i in range(world_size):
+        children[i].join()
+
+    # mp.spawn(main, args=(args, queue), nprocs=world_size, join=True)
     # args = get_args_parser()
     # args = args.parse_args()
     # if args.output_dir:
