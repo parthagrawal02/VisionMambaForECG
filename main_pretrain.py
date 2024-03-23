@@ -145,7 +145,7 @@ def main(rank, args, queue):
     cudnn.benchmark = True
     print("trying to get queue")
     # dataset = ECGDataset(args.data_path)
-    dataset = queue
+    # dataset = queue
     print("I am ahead of queue")
 
     if True:  # args.distributed:
@@ -165,7 +165,7 @@ def main(rank, args, queue):
         log_writer = None
 
     data_loader_train = torch.utils.data.DataLoader(
-        dataset, sampler=sampler_train,
+        queue, sampler=sampler_train,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         pin_memory=args.pin_mem,
@@ -243,8 +243,8 @@ def main(rank, args, queue):
 if __name__ == '__main__':
     world_size = torch.cuda.device_count()
     dataset = ECGDataset(data_path="")
-    dataset.share_memory()
-    print(dataset[0][0])
+    # dataset.share_memory()
+    # print(dataset[0][0])
     # Train in other processes
     args = get_args_parser()
     args = args.parse_args()
