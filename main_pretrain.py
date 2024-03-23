@@ -247,6 +247,8 @@ if __name__ == '__main__':
     p = mp.Process(target=load_dataset, args=(queue,))
     p.start()
     p.join()
+    dataset = queue.get()
+    print(dataset[0][0])
     # Train in other processes
     args = get_args_parser()
     args = args.parse_args()
