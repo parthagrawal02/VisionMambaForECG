@@ -143,10 +143,10 @@ def main(rank, args, queue):
     # torch.manual_seed(seed)
     # np.random.seed(seed)
     cudnn.benchmark = True
-        
+    print("trying to get queue")
     # dataset = ECGDataset(args.data_path)
     dataset = queue.get()
-
+    print("I am ahead of queue")
 
     if True:  # args.distributed:
         num_tasks = misc.get_world_size()
@@ -252,7 +252,7 @@ if __name__ == '__main__':
     args = args.parse_args()
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
-
+    queue.size()
     children = []
     for i in range(world_size):
         subproc = mp.Process(target=main, args=(i, args, queue))
